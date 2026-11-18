@@ -1,140 +1,180 @@
-# AI Research Assistant (LangChain v1)
+# AI Research Assistant
 
-A command-line research assistant that uses a large language model, web search, and Wikipedia to answer research questions. It returns structured JSON and can save research notes to a file.
+A command-line research agent that combines a large language model with web search, Wikipedia, structured output validation, and local file saving.
+
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)
+![LangChain](https://img.shields.io/badge/LangChain-v1-1C3C3C?style=flat-square)
+![Interface](https://img.shields.io/badge/Interface-CLI-4B5563?style=flat-square)
+
+## Overview
+
+The assistant accepts a research question in the terminal, selects either an Anthropic or OpenAI model from the configured environment, and gives the model access to three tools: DuckDuckGo search, Wikipedia lookup, and local note saving. Its final response is validated with Pydantic and printed as structured JSON.
+
+This project demonstrates tool-using agents, provider selection, schema-constrained output, defensive error handling, and safe local file creation.
 
 ## Features
 
-- Enter research questions through an interactive CLI.
-- Search the web and retrieve Wikipedia summaries using a LangChain v1 agent.
-- Get JSON output with four fields: `topic`, `summary`, `sources`, and `tools_used`.
-- Use Anthropic or OpenAI based on the API keys you configure.
-- Save research notes with an optional file-saving tool.
-- Get readable error messages for common setup and model issues.
+- Interactive command-line research workflow
+- Anthropic and OpenAI model support
+- Automatic provider selection from environment variables
+- DuckDuckGo web search with titles, URLs, and snippets
+- Wikipedia summaries with disambiguation handling
+- Optional timestamped local note saving
+- Pydantic-validated JSON responses
+- Friendly handling for missing API keys and unavailable model IDs
+- Filename sanitization for agent-created files
 
-## Tech stack
+## Architecture
 
-| Component | Technology |
-| --- | --- |
-| Language | Python 3.10+ recommended |
-| Agent framework | `langchain`, `langchain-core` |
-| Model providers | `langchain-anthropic`, `langchain-openai` |
-| Environment configuration | `python-dotenv` |
-| Output validation | `pydantic` |
-| Web search | `duckduckgo-search` |
-| Wikipedia lookup | `wikipedia` |
+```mermaid
+flowchart LR
+    U[Research question] --> A[LangChain agent]
+    A --> L[OpenAI or Anthropic LLM]
+    A --> S[DuckDuckGo search]
+    A --> W[Wikipedia]
+    A --> F[Local file tool]
+    S --> A
+    W --> A
+    F --> A
+    A --> P[Pydantic parser]
+    P --> J[Structured JSON output]
+```
 
-## Project structure
+The main application builds the agent and validates its response. Tool implementations live separately in `tools.py`, which keeps external operations isolated from the CLI and output-parsing logic.
+
+## Project Structure
 
 ```text
-ai_assist/
-├── main.py           # Agent setup, provider selection, CLI, and response parsing
-├── tools.py          # Web search, Wikipedia lookup, and file saving
-├── requirements.txt  # Python dependencies
-├── .env              # Local API keys and optional model overrides
+.
+├── main.py                 # Provider selection, agent setup, CLI, and parsing
+├── tools.py                # Search, Wikipedia, and file-saving tools
+├── requirements.txt        # Python dependencies
+├── langchain_research.txt  # Project notes
+├── .gitignore
 └── README.md
 ```
 
 ## Setup
 
-Run the following commands from the project directory.
+### 1. Clone the repository
 
-### 1. Create and activate a virtual environment
+```bash
+git clone https://github.com/SharathKumarReddyAlijarla/AI-Research-Assistant.git
+cd AI-Research-Assistant
+```
 
-**Windows (PowerShell)**
+### 2. Create a virtual environment
+
+Windows PowerShell:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-**macOS or Linux**
+macOS or Linux:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### 2. Install dependencies
+### 3. Install dependencies
 
 ```bash
+python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-### 3. Configure your API key
+### 4. Configure a model provider
 
-Create a file named `.env` in the same directory as `main.py`. Uncomment the line for your provider by removing the leading `#`, then replace the placeholder with your API key.
-
-```dotenv
-# ANTHROPIC_API_KEY=your_anthropic_key_here
-# OPENAI_API_KEY=your_openai_key_here
-```
-
-Only one key is required. If both keys are set, the assistant selects **Anthropic**.
-
-To override the model for your provider, uncomment the corresponding line and use a model available to your account.
+Create `.env` in the repository root and add one provider key:
 
 ```dotenv
-# ANTHROPIC_MODEL=claude-sonnet-4-6
-# OPENAI_MODEL=gpt-4o-mini
+ANTHROPIC_API_KEY=replace_with_your_key
+# OPENAI_API_KEY=replace_with_your_key
 ```
 
-## Run
+Optional model overrides:
+
+```dotenv
+ANTHROPIC_MODEL=replace_with_an_available_anthropic_model
+OPENAI_MODEL=replace_with_an_available_openai_model
+```
+
+Only one API key is required. When both are configured, the current implementation gives Anthropic priority.
+
+## Usage
+
+Run the assistant:
 
 ```bash
 python main.py
 ```
 
-Enter your question at the prompt. For example:
+Example prompt:
 
 ```text
-What can I help you research? What is LangChain?
+What can I help you research? What are the main applications of invertible neural networks?
 ```
 
-## Example output
+Expected response shape:
 
 ```json
 {
-  "topic": "LangChain",
-  "summary": "LangChain is an open-source framework for building applications that connect language models with tools and external data.",
+  "topic": "Invertible neural networks",
+  "summary": "A concise research summary.",
   "sources": [
-    "https://www.langchain.com/"
+    "https://example.org/source"
   ],
   "tools_used": [
-    "search_tool"
+    "search_tool",
+    "wiki_tool"
   ]
 }
 ```
 
-## How it works
+The agent can also call `save_tool` to write a timestamped text file in the current working directory.
 
-1. The application loads environment variables from `.env` and selects a model provider.
-2. It builds a LangChain agent with `create_agent`, a system prompt, and the tools defined in `tools.py`.
-3. You enter a research question in the terminal.
-4. The agent uses tools as needed to gather information or save notes.
-5. The application validates the final response against a Pydantic schema and prints the result as JSON.
+## Results
 
-## Troubleshooting
+The implemented workflow produces a validated four-field JSON object containing the topic, summary, source URLs, and tool names used. Tool errors are returned to the agent as readable text so one failed lookup does not necessarily terminate the whole research request.
 
-| Issue | What to do |
+This repository does not currently include a benchmark suite for factual accuracy, citation correctness, latency, or provider-to-provider comparison.
+
+## Technology Stack
+
+| Area | Technology |
 | --- | --- |
-| `No API key found` | Check that `.env` is in the same directory as `main.py` and that one API key line is uncommented and contains your key. |
-| Anthropic returns `404 not_found_error` | Check the model ID in `ANTHROPIC_MODEL` and confirm your account has access to it. |
-| `ImportError` involving agent APIs | Activate the virtual environment and install the dependencies from `requirements.txt`. This project uses the LangChain v1 `create_agent` API. |
-| DuckDuckGo package rename warning | The warning refers to the rename from `duckduckgo-search` to `ddgs`. This project currently uses `duckduckgo-search`. |
+| Language | Python |
+| Agent framework | LangChain |
+| Model providers | OpenAI and Anthropic |
+| Schema validation | Pydantic |
+| Web search | DuckDuckGo Search |
+| Reference lookup | Wikipedia |
+| Configuration | python-dotenv |
+
+## Limitations
+
+- Web search and Wikipedia require an internet connection.
+- Model use requires a valid provider API key and may incur provider charges.
+- Search results are summarized by the model; URLs and claims are not independently verified by the application.
+- The workflow is single-turn and does not retain conversation memory.
+- Provider model names and availability can change over time.
+- Automated tests, streaming responses, retry policies, and citation validation are not yet included.
+- The file tool writes plain text only and is intended for local development use.
 
 ## Security
 
-- Keep `.env` local and include it in `.gitignore`.
-- Never commit real API keys.
-- If a key is exposed, rotate it in the provider dashboard.
+- Never commit `.env` or real API keys.
+- Rotate a provider key immediately if it is exposed.
+- Review generated research and source URLs before using them in academic or professional work.
+- Treat model-generated content as a draft, not as independently verified research.
 
 ## Roadmap
 
-- [ ] Add streaming output.
-- [ ] Validate citations and source URLs before printing the response.
-- [ ] Add unit tests for the tools and response parser.
-- [ ] Add conversation memory for follow-up questions.
-
-## Contributing
-
-Contributions are welcome. For bugs, open an issue with steps to reproduce the problem. For large changes, open an issue describing the proposal before starting implementation.
+- [ ] Add source and citation verification
+- [ ] Add streaming output
+- [ ] Add conversation memory
+- [ ] Add tests for tools and response parsing
+- [ ] Add retries and request timeouts
